@@ -1,0 +1,67 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Product {
+  id          String    @id @default(uuid())
+  name        String
+  description String
+  price       Float
+  imageUrl    String
+  variants    Variant[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Variant {
+  id        String   @id @default(uuid())
+  name      String
+  sku       String   @unique
+  price     Float
+  inventory Int
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  orders    OrderItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  customerEmail String
+  customerName  String
+  address       String
+  city         String
+  country      String
+  postalCode   String
+  status       OrderStatus  @default(PENDING)
+  total        Float
+  items        OrderItem[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  variantId String
+  quantity  Int
+  price     Float
+  order     Order    @relation(fields: [orderId], references: [id])
+  variant   Variant  @relation(fields: [variantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+} 
