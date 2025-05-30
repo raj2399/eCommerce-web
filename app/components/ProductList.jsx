@@ -9,6 +9,8 @@ export default function ProductList() {
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     setMounted(true);
@@ -19,20 +21,26 @@ export default function ProductList() {
 
     const fetchResults = async () => {
       try {
-        // For testing, let's use our seeded product data
-        const response = await fetch('/api/products');
+        setLoading(true);
+        const query = searchParams.get('q');
+        
+        // Determine which endpoint to use based on whether there's a search query
+        const endpoint = query 
+          ? `/api/search?q=${encodeURIComponent(query)}`
+          : '/api/products';
+        
+        const response = await fetch(endpoint);
+        if (!response.ok) {
+          throw new Error('Failed to fetch products');
+        }
+        
         const data = await response.json();
-        console.log('Fetched products:', data);
-        
-        // Add default image URL if not present
-        const productsWithImages = data.products.map(product => ({
-          ...product,
-          imageUrl: `https://placehold.co/400x300?text=${encodeURIComponent(product.name)}`
-        }));
-        
-        setResults(productsWithImages || []);
+        setResults(data.products || []);
       } catch (error) {
         console.error('Error fetching results:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -40,20 +48,38 @@ export default function ProductList() {
   }, [searchParams, mounted]);
 
   const handleSelectProduct = (product) => {
-    console.log('Selecting product:', product);
-    // Store selected product in localStorage
     localStorage.setItem('selectedProduct', JSON.stringify(product));
-    // Navigate to shop page
     router.push('/shop');
   };
 
-  if (!mounted || !results) return null;
-  
-  if (results.length === 0) {
+  if (!mounted || loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3].map((n) => (
+          <div key={n} className="animate-pulse">
+            <div className="bg-gray-200 h-48 rounded-lg mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
     return (
       <div className="text-center py-10">
-        <h3 className="text-xl font-semibold text-gray-600">No results found</h3>
-        <p className="text-gray-500 mt-2">Try adjusting your search or filters</p>
+        <h3 className="text-xl font-semibold text-red-600 mb-2">Error loading products</h3>
+        <p className="text-gray-500">{error}</p>
+      </div>
+    );
+  }
+
+  if (!results || results.length === 0) {
+    return (
+      <div className="text-center py-10">
+        <h3 className="text-xl font-semibold text-gray-600">No products found</h3>
+        <p className="text-gray-500 mt-2">Try adjusting your search criteria</p>
       </div>
     );
   }
@@ -76,60 +102,21 @@ export default function ProductList() {
             />
           </div>
           <div className="p-4">
-            <div className="mb-2">
-              <h3 className="text-lg font-semibold text-gray-800">
-                {product.name}
-              </h3>
-              <div className="text-2xl font-bold text-blue-600 mt-2">
-                ${product.price.toFixed(2)}
-              </div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              {product.name}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {product.description}
+            </p>
+            <div className="text-2xl font-bold text-blue-600 mb-4">
+              ${product.price.toFixed(2)}
             </div>
-            
-            <div className="space-y-2 mt-4 text-sm text-gray-600">
-              {product.brand && (
-                <div className="flex justify-between">
-                  <span>Brand:</span>
-                  <span className="font-medium">{product.brand}</span>
-                </div>
-              )}
-              
-              {product.color && (
-                <div className="flex justify-between">
-                  <span>Color:</span>
-                  <span className="font-medium">{product.color}</span>
-                </div>
-              )}
-              
-              {product.size && (
-                <div className="flex justify-between">
-                  <span>Size:</span>
-                  <span className="font-medium">{product.size}</span>
-                </div>
-              )}
-              
-              {product.screenSize && (
-                <div className="flex justify-between">
-                  <span>Screen Size:</span>
-                  <span className="font-medium">{product.screenSize}"</span>
-                </div>
-              )}
-              
-              {product.resolution && (
-                <div className="flex justify-between">
-                  <span>Resolution:</span>
-                  <span className="font-medium">{product.resolution}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-4">
-              <button
-                onClick={() => handleSelectProduct(product)}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
-              >
-                Select Product
-              </button>
-            </div>
+            <button
+              onClick={() => handleSelectProduct(product)}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
+            >
+              Select Product
+            </button>
           </div>
         </div>
       ))}
